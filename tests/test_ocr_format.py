@@ -1,14 +1,30 @@
 from ocr.rapid import RapidOCRBackend
 
 
-def test_format_result_joins_lines():
+def _patch_engine(monkeypatch, txts):
+    class FakeOutput:
+        def __init__(self, txts):
+            self.txts = txts
+
+    class FakeEngine:
+        def __call__(self, image_path):
+            return FakeOutput(txts)
+
     backend = RapidOCRBackend()
-    result = [
-        [[[10, 10], [100, 10], [100, 30], [10, 30]], ("你好世界", 0.99)],
-        [[[10, 40], [200, 40], [200, 60], [10, 60]], ("second line", 0.98)],
-    ]
-    assert backend._format_result(result) == "你好世界\nsecond line"
+    monkeypatch.setattr(backend, "_ensure_engine", lambda: FakeEngine())
+    return backend
 
 
-def test_format_result_handles_empty():
-    assert RapidOCRBackend()._format_result([]) == ""
+def test_recognize_joins_lines(monkeypatch):
+    backend = _patch_engine(monkeypatch, ["你好世界", "second line"])
+    assert backend.recognize("whatever.png") == "你好世界\nsecond line"
+
+
+def test_recognize_handles_empty(monkeypatch):
+    backend = _patch_engine(monkeypatch, [])
+    assert backend.recognize("whatever.png") == ""
+
+
+def test_recognize_filters_blank_lines(monkeypatch):
+    backend = _patch_engine(monkeypatch, ["hello", "", "world"])
+    assert backend.recognize("whatever.png") == "hello\nworld"

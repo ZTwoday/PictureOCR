@@ -58,6 +58,7 @@ class OCRManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._threads = []
+        self._workers = []
         self._backends = {}
 
     def get_available_engines(self) -> list[str]:
@@ -92,6 +93,7 @@ class OCRManager(QObject):
         worker = self._make_worker(image_path, engine, backends)
         thread = QThread(self)
         self._threads.append(thread)
+        self._workers.append(worker)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.done.connect(thread.quit)
@@ -99,5 +101,10 @@ class OCRManager(QObject):
         worker.done.connect(worker.deleteLater)
         worker.failed.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(lambda: self._threads.remove(thread))
+
+        def _cleanup():
+            self._threads.remove(thread)
+            self._workers.remove(worker)
+
+        thread.finished.connect(_cleanup)
         thread.start()
