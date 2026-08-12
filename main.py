@@ -3,8 +3,8 @@ import sys
 import uuid
 from datetime import datetime
 
-from PySide6.QtCore import QObject, QThread, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QObject, Qt, QThread, QTimer
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from capture.overlay import CaptureOverlay
@@ -18,6 +18,18 @@ from ui.result_popup import ResultPopup
 from ui.settings_dialog import SettingsDialog
 
 
+def _make_tray_icon() -> QIcon:
+    pixmap = QPixmap(32, 32)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setBrush(QColor("#2d7ff9"))
+    painter.setPen(Qt.NoPen)
+    painter.drawRoundedRect(2, 2, 28, 28, 7, 7)
+    painter.end()
+    return QIcon(pixmap)
+
+
 class OcrApp(QObject):
     def __init__(self, app: QApplication):
         super().__init__()
@@ -29,9 +41,10 @@ class OcrApp(QObject):
         self.settings_dialog = None
         self._pending_image = None
         self._last_entry = None
+        self._enhance_requested = False
         self._hotkey = GlobalHotkey(self)
 
-        self.tray = QSystemTrayIcon(QIcon(), self)
+        self.tray = QSystemTrayIcon(_make_tray_icon(), self)
         self.tray.setToolTip("OCR 截图识字")
         self._build_tray_menu()
         self.tray.show()
@@ -78,12 +91,18 @@ class OcrApp(QObject):
         add_entry(entry)
         self._last_entry = entry
         self.history_window.refresh()
-        self.popup.show_result(text, engine, on_enhance=self._enhance)
+        note = None
+        if self._enhance_requested:
+            self._enhance_requested = False
+            if engine != "baidu":
+                note = "百度不可用，已回退本地识别"
+        self.popup.show_result(text, engine, on_enhance=self._enhance, note=note)
 
     def _enhance(self):
         if self._pending_image is None:
             return
         self.popup.setWindowTitle("云端增强识别中…")
+        self._enhance_requested = True
         self.manager.recognize_async(self._pending_image, "baidu")
 
     def open_settings(self):
@@ -95,7 +114,13 @@ class OcrApp(QObject):
 
     def _apply_hotkey(self, spec: str):
         self._hotkey.unregister()
-        self._hotkey.register(int(self.history_window.winId()), spec, self.start_capture)
+        if not self._hotkey.register(int(self.history_window.winId()), spec, self.start_capture):
+            print(f"WARNING: global hotkey '{spec}' failed to register (possibly in use)", file=sys.stderr)
+            self.tray.showMessage(
+                "热键注册失败",
+                f"全局热键 {spec} 可能被其他程序占用，请使用托盘或窗口按钮触发",
+                QSystemTrayIcon.MessageIcon.Warning,
+            )
 
 
 def main():

@@ -17,3 +17,12 @@ def test_copy_all_writes_clipboard(app):
     popup.show_result("hello", "rapid", on_enhance=None)
     popup.copy_all()
     assert QApplication.clipboard().text() == "hello"
+
+
+def test_note_label_shows_and_hides(app):
+    popup = ResultPopup()
+    popup.show_result("hi", "rapid", on_enhance=None, note="百度不可用")
+    assert popup.note_label.text() == "百度不可用"
+    assert not popup.note_label.isHidden()
+    popup.show_result("hi", "rapid", on_enhance=None)
+    assert popup.note_label.isHidden()

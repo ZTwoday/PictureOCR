@@ -23,3 +23,16 @@ def test_save_writes_config_and_creds(app, monkeypatch, tmp_path):
     dialog.save()
     assert saved["hotkey"] == "Ctrl+Shift+X"
     assert saved["default_engine"] == "baidu"
+
+
+def test_save_deletes_creds_when_key_empty(app, monkeypatch, tmp_path):
+    deleted = []
+    monkeypatch.setattr("ui.settings_dialog.get_baidu_creds", lambda: None)
+    monkeypatch.setattr("ui.settings_dialog.default_config_path", lambda: str(tmp_path / "config.json"))
+    monkeypatch.setattr("ui.settings_dialog.save_config", lambda cfg, path=None: None)
+    monkeypatch.setattr("ui.settings_dialog.delete_baidu_creds", lambda: deleted.append(True))
+    dialog = SettingsDialog()
+    dialog.api_key_edit.setText("")
+    dialog.secret_key_edit.setText("sk-stale")
+    dialog.save()
+    assert deleted == [True]

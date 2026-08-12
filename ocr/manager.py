@@ -34,7 +34,8 @@ class _Worker(QObject):
         if text is not None:
             self.done.emit(text, engine)
         else:
-            self.failed.emit("识别失败")
+            reason = engine if engine != "no backend" else "无可用识别引擎"
+            self.failed.emit(f"识别失败：{reason}")
 
     def _run(self, requested: str):
         order = [requested] + [e for e in FALLBACK_ORDER if e != requested]
@@ -76,13 +77,27 @@ class OCRManager(QObject):
                     pass
         return backends
 
-    def _run_recognize(self, image_path: str, engine: str, backends: dict):
+    def _make_worker(self, image_path: str, engine: str, backends: dict) -> _Worker:
         worker = _Worker(image_path, engine, backends)
         worker.done.connect(lambda text, eng: self.finished.emit(text, eng))
         worker.failed.connect(lambda msg: self.error.emit(msg))
-        worker.run()
+        return worker
+
+    def _run_recognize(self, image_path: str, engine: str, backends: dict):
+        self._make_worker(image_path, engine, backends).run()
 
     def recognize_async(self, image_path: str, engine: str | None = None) -> None:
         engine = engine or load_config().get("default_engine", "rapid")
         backends = self._load_backends(engine)
-        self._run_recognize(image_path, engine, backends)
+        worker = self._make_worker(image_path, engine, backends)
+        thread = QThread(self)
+        self._threads.append(thread)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.done.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        worker.done.connect(worker.deleteLater)
+        worker.failed.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(lambda: self._threads.remove(thread))
+        thread.start()

@@ -16,6 +16,11 @@ class ResultPopup(QWidget):
         self.engine_label = QLabel()
         layout.addWidget(self.engine_label)
 
+        self.note_label = QLabel()
+        self.note_label.setStyleSheet("color: #c0392b;")
+        self.note_label.hide()
+        layout.addWidget(self.note_label)
+
         self.text_edit = QPlainTextEdit()
         self.text_edit.setReadOnly(True)
         layout.addWidget(self.text_edit)
@@ -34,9 +39,14 @@ class ResultPopup(QWidget):
         self.enhance_button.clicked.connect(self._enhance)
         self.close_button.clicked.connect(self.close)
 
-    def show_result(self, text: str, engine: str, on_enhance=None):
+    def show_result(self, text: str, engine: str, on_enhance=None, note=None):
         self.text_edit.setPlainText(text)
         self.engine_label.setText(f"引擎：{engine}")
+        if note:
+            self.note_label.setText(note)
+            self.note_label.show()
+        else:
+            self.note_label.hide()
         self._on_enhance = on_enhance
         self.enhance_button.setVisible(on_enhance is not None)
         self.show()

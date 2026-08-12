@@ -45,3 +45,14 @@ def test_fallback_from_baidu_to_rapid(monkeypatch):
     mgr.finished.connect(lambda text, engine: results.append((text, engine)))
     mgr._run_recognize("x.png", "baidu", engines)
     assert results and results[0] == ("fallback text", "rapid")
+
+
+def test_all_backends_fail_emits_reason(monkeypatch):
+    from ocr import manager as m
+    engines = {"rapid": FakeBackend("boom")}
+    monkeypatch.setattr(m, "make_backend", lambda name: engines[name])
+    mgr = OCRManager()
+    errors = []
+    mgr.error.connect(lambda msg: errors.append(msg))
+    mgr._run_recognize("x.png", "rapid", engines)
+    assert errors and "boom" in errors[0]
