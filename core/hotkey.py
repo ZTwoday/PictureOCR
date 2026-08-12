@@ -42,6 +42,13 @@ class GlobalHotkey(QObject):
         super().__init__(parent)
         self._user32 = ctypes.windll.user32
         self._user32.RegisterHotKey.restype = wintypes.BOOL
+        self._user32.RegisterHotKey.argtypes = [
+            wintypes.HWND,
+            ctypes.c_int,
+            wintypes.UINT,
+            wintypes.UINT,
+        ]
+        self._user32.UnregisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int]
         self._filter = None
         self._hwnd = None
         self._id = 1
