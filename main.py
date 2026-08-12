@@ -3,14 +3,15 @@ import sys
 import uuid
 from datetime import datetime
 
-from PySide6.QtCore import QObject, QSharedMemory, Qt, QThread, QTimer
-from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QObject, QSharedMemory, QThread, QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from capture.overlay import CaptureOverlay
 from capture.screen import capture_region, save_pixmap
 from core.config import data_dir, load_config
 from core.hotkey import GlobalHotkey
+from core.icons import load_app_icon, load_tray_icon
 from ocr.manager import OCRManager
 from storage.history import HistoryEntry, add_entry
 from ui.history_window import HistoryWindow
@@ -19,15 +20,7 @@ from ui.settings_dialog import SettingsDialog
 
 
 def _make_tray_icon() -> QIcon:
-    pixmap = QPixmap(32, 32)
-    pixmap.fill(Qt.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.Antialiasing)
-    painter.setBrush(QColor("#2d7ff9"))
-    painter.setPen(Qt.NoPen)
-    painter.drawRoundedRect(2, 2, 28, 28, 7, 7)
-    painter.end()
-    return QIcon(pixmap)
+    return load_tray_icon()
 
 
 class SingleInstanceGuard:
@@ -137,6 +130,7 @@ class OcrApp(QObject):
 def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    app.setWindowIcon(load_app_icon())
     guard = SingleInstanceGuard()
     if not guard.is_primary:
         tray = QSystemTrayIcon(_make_tray_icon(), app)

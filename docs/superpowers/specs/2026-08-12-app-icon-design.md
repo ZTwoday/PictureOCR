@@ -48,7 +48,7 @@
 | `app_icon.svg` | 可编辑源文件，唯一几何来源 |
 | `app_icon.png` (256px) | 窗口标题栏 / 任务栏 / 全局图标 |
 | `app_icon.ico` (16/32/48/64/128/256) | Windows 快捷方式、将来打包 exe 用（交付，不集成进代码） |
-| `tray_icon.png` (16/32px，白线) | 系统托盘 |
+| `tray_icon_16.png` / `tray_icon_32.png` (白线) | 系统托盘 |
 
 ## 4. 生成方式
 
