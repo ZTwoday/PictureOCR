@@ -14,7 +14,7 @@
 5. 托盘 → 设置：改热键、默认引擎、百度 API Key / Secret Key
 
 ## 修改热键
-设置对话框改"全局热键"，格式如 `Ctrl+Alt+A`、`Ctrl+Shift+B`，重启生效。
+设置对话框改"全局热键"，格式如 `Ctrl+Alt+A`、`Ctrl+Shift+B`，保存后即时生效。
 
 ## 数据位置
 - 配置与历史：`C:\Users\<你>\.ocr_app\`
