@@ -3,7 +3,7 @@ import sys
 import uuid
 from datetime import datetime
 
-from PySide6.QtCore import QObject, Qt, QThread, QTimer
+from PySide6.QtCore import QObject, QSharedMemory, Qt, QThread, QTimer
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -28,6 +28,17 @@ def _make_tray_icon() -> QIcon:
     painter.drawRoundedRect(2, 2, 28, 28, 7, 7)
     painter.end()
     return QIcon(pixmap)
+
+
+class SingleInstanceGuard:
+    _KEY = "com.picture-ocr.singleton"
+
+    def __init__(self):
+        self._shm = QSharedMemory(self._KEY)
+        if self._shm.attach():
+            self.is_primary = False
+            return
+        self.is_primary = self._shm.create(1)
 
 
 class OcrApp(QObject):
@@ -126,6 +137,14 @@ class OcrApp(QObject):
 def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    guard = SingleInstanceGuard()
+    if not guard.is_primary:
+        tray = QSystemTrayIcon(_make_tray_icon(), app)
+        tray.show()
+        tray.showMessage("OCR 截图识字", "应用已在运行，无需重复启动",
+                         QSystemTrayIcon.Information, 3000)
+        QTimer.singleShot(3500, app.quit)
+        sys.exit(app.exec())
     ocr_app = OcrApp(app)
     ocr_app._apply_hotkey(load_config().get("hotkey", "Ctrl+Alt+A"))
     sys.exit(app.exec())
