@@ -29,6 +29,7 @@ class OcrApp(QObject):
         self.settings_dialog = None
         self._pending_image = None
         self._last_entry = None
+        self._hotkey = GlobalHotkey(self)
 
         self.tray = QSystemTrayIcon(QIcon(), self)
         self.tray.setToolTip("OCR 截图识字")
@@ -93,7 +94,7 @@ class OcrApp(QObject):
         self._apply_hotkey(config.get("hotkey", "Ctrl+Alt+A"))
 
     def _apply_hotkey(self, spec: str):
-        self._hotkey = GlobalHotkey(self)
+        self._hotkey.unregister()
         self._hotkey.register(int(self.history_window.winId()), spec, self.start_capture)
 
 

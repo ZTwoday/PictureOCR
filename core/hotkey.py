@@ -67,4 +67,8 @@ class GlobalHotkey(QObject):
     def unregister(self):
         if self._hwnd is not None:
             self._user32.UnregisterHotKey(self._hwnd, self._id)
-        self._hwnd = None
+            self._hwnd = None
+        if self._filter is not None:
+            from PySide6.QtGui import QGuiApplication
+            QGuiApplication.instance().removeNativeEventFilter(self._filter)
+            self._filter = None
