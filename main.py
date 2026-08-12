@@ -146,6 +146,10 @@ def main():
         QTimer.singleShot(3500, app.quit)
         sys.exit(app.exec())
     ocr_app = OcrApp(app)
+    ocr_app.tray.showMessage(
+        "OCR 截图识字", "已启动：按 Ctrl+Alt+A 或点击托盘图标框选截图",
+        QSystemTrayIcon.Information, 3000,
+    )
     ocr_app._apply_hotkey(load_config().get("hotkey", "Ctrl+Alt+A"))
     sys.exit(app.exec())
 
