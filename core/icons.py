@@ -8,10 +8,12 @@ ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 
 
 def load_app_icon() -> QIcon:
+    """Window/taskbar icon. White line drawing so it is visible on a dark taskbar."""
     icon = QIcon()
-    pixmap = QPixmap(os.path.join(ASSETS_DIR, "app_icon.png"))
-    if not pixmap.isNull():
-        icon.addPixmap(pixmap)
+    for name in ("app_icon_white.png", "tray_icon_32.png", "tray_icon_16.png"):
+        pixmap = QPixmap(os.path.join(ASSETS_DIR, name))
+        if not pixmap.isNull():
+            icon.addPixmap(pixmap)
     return icon
 
 

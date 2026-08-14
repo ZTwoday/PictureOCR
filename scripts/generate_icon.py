@@ -57,6 +57,13 @@ def generate(output_dir, svg_path=DEFAULT_SVG):
     ico_path = os.path.join(output_dir, "app_icon.ico")
     images[-1].save(ico_path, format="ICO",
                     sizes=[(s, s) for s in APP_SIZES], append_images=images[:-1])
+
+    white_256 = _white_ink(render_svg(svg_path, 256))
+    _to_pil(white_256).save(os.path.join(output_dir, "app_icon_white.png"))
+    white_images = [_to_pil(_white_ink(render_svg(svg_path, s))) for s in APP_SIZES]
+    white_ico_path = os.path.join(output_dir, "app_icon_white.ico")
+    white_images[-1].save(white_ico_path, format="ICO",
+                          sizes=[(s, s) for s in APP_SIZES], append_images=white_images[:-1])
     return ico_path
 
 
