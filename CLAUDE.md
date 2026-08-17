@@ -7,7 +7,7 @@
 ## 约束
 - 测试运行前必须设置 QT_QPA_PLATFORM=offscreen（conftest.py 已处理）
 - 百度 API 凭据禁止写进代码；存 Windows 凭据管理器
-- 数据目录：~/.ocr_app（config.json / history.json / images/）
+- 数据目录：~/.ocr_app（config.json / images/）
 - venv 在 .venv/，运行：.venv/Scripts/python
 
 ## 环境注意事项（重要）
