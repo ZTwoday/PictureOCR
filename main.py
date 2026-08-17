@@ -1,19 +1,21 @@
 import os
 import sys
 import uuid
+from datetime import datetime
 
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMenu, QSystemTrayIcon
 
 from capture.overlay import CaptureOverlay
-from capture.screen import capture_region, save_pixmap
+from capture.screen import save_pixmap
 from core.config import data_dir, load_config
 from core.hotkey import GlobalHotkey
 from core.icons import load_app_icon, load_tray_icon
 from ocr.manager import OCRManager
 from ui.main_window import MainWindow
+from ui.screenshot_preview import ScreenshotPreview
 from ui.settings_dialog import SettingsDialog
 
 
@@ -45,6 +47,8 @@ class OcrApp(QObject):
         self.settings_dialog = None
         self._pending_image = None
         self._enhance_requested = False
+        self._capture_mode = "ocr"
+        self._overlay_active = False
         self._hotkey = GlobalHotkey(self)
 
         self.tray = QSystemTrayIcon(_make_tray_icon(), self)
@@ -62,7 +66,8 @@ class OcrApp(QObject):
 
     def _build_tray_menu(self):
         menu = QMenu()
-        menu.addAction("框选截图", self.start_capture)
+        menu.addAction("识别文字", self.start_capture)
+        menu.addAction("截图", self.start_shot)
         menu.addAction("打开主窗口", self.show_window)
         menu.addAction("设置", self.open_settings)
         menu.addAction("退出", self.app.quit)
@@ -70,8 +75,9 @@ class OcrApp(QObject):
 
     def _wire(self):
         self.overlay.region_selected.connect(self._on_region_selected)
-        self.overlay.cancelled.connect(self.show_window)
+        self.overlay.cancelled.connect(self._on_capture_cancelled)
         self.window.capture_requested.connect(self.start_capture)
+        self.window.shot_requested.connect(self.start_shot)
         self.window.enhance_requested.connect(self._enhance)
         self.manager.finished.connect(self._on_ocr_finished)
         self.manager.error.connect(self._show_error)
@@ -98,14 +104,38 @@ class OcrApp(QObject):
 
     def _show_error(self, msg):
         self.window.show_error(msg)
-        self.show_window()
+        if not self._overlay_active:
+            self.show_window()
 
     def start_capture(self):
+        self._capture_mode = "ocr"
+        self._begin_capture()
+
+    def start_shot(self):
+        self._capture_mode = "shot"
+        self._begin_capture()
+
+    def _on_capture_cancelled(self):
+        self._overlay_active = False
+        self.show_window()
+
+    def _begin_capture(self):
+        if self._overlay_active:
+            return
+        self._overlay_active = True
         self.window.hide()
-        self.overlay.start()
+        # grabWindow(0) races the DWM compositor: right after hide() the
+        # window can still be present in the captured frame, blocking the
+        # region the user wants. Measured ~365ms for this window to fully
+        # clear on a 1080p display, so wait 500ms for it to be gone.
+        QTimer.singleShot(500, self.overlay.start)
 
     def _on_region_selected(self, x, y, w, h):
-        pixmap = capture_region(x, y, w, h)
+        self._overlay_active = False
+        pixmap = self.overlay.crop_region(x, y, w, h)
+        if self._capture_mode == "shot":
+            self._handle_shot(pixmap)
+            return
         images_dir = os.path.join(data_dir(), "images")
         os.makedirs(images_dir, exist_ok=True)
         image_path = os.path.join(images_dir, f"{uuid.uuid4().hex}.png")
@@ -114,6 +144,32 @@ class OcrApp(QObject):
         engine = load_config().get("default_engine", "rapid")
         self.manager.recognize_async(image_path, engine)
 
+    def _handle_shot(self, pixmap):
+        preview = ScreenshotPreview(pixmap, self.window)
+        if preview.exec() != QDialog.DialogCode.Accepted:
+            self.show_window()
+            return
+        if preview.choice == "continue":
+            self.start_shot()
+        elif preview.choice == "copy":
+            QApplication.clipboard().setPixmap(pixmap)
+            self.tray.showMessage("截图", "已复制到剪贴板",
+                                  QSystemTrayIcon.MessageIcon.Information, 2000)
+        elif preview.choice == "save":
+            self._save_shot(pixmap)
+
+    def _save_shot(self, pixmap):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default = os.path.join(os.path.expanduser("~"), "Pictures", f"截图_{timestamp}.png")
+        path, _ = QFileDialog.getSaveFileName(self.window, "保存截图", default, "PNG 图片 (*.png)")
+        if not path:
+            return
+        if not path.lower().endswith(".png"):
+            path += ".png"
+        save_pixmap(pixmap, path)
+        self.tray.showMessage("截图", f"已保存：{path}",
+                              QSystemTrayIcon.MessageIcon.Information, 2500)
+
     def _on_ocr_finished(self, text, engine):
         note = None
         if self._enhance_requested:
@@ -121,7 +177,8 @@ class OcrApp(QObject):
             if engine != "baidu":
                 note = "百度不可用，已回退本地识别"
         self.window.show_result(text, engine, note=note)
-        self.show_window()
+        if not self._overlay_active:
+            self.show_window()
 
     def _enhance(self):
         if self._pending_image is None:
